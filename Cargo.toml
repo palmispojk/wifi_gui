@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+async-trait = "0.1.89"
 eframe = "0.33.0"
-tokio = "1.48.0"
-zbus = {version = "5.12.0", default-features = false, features = ["tokio""]}
+tokio = {version = "1.48.0", features = ["full"] }
+zbus = {version = "5.12.0", default-features = false, features = ["tokio"]}
