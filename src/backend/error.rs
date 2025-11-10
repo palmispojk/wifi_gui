@@ -1,11 +1,19 @@
 use std::fmt;
 use zbus::Error as ZbusError;
 
+///Error type for all NetworkManager-related operations.
+///
+///This wraps lower-level D-Bus errors and provides
+///semantic errors relevant to Wi-Fi and device management.
 #[derive(Debug)]
 pub enum NMError {
+    /// A D-Bus-level error occurred.
     Dbus(ZbusError),
+    /// No NetworkManager-related device was found on the system.
     NoDeviceFound,
+    /// The provided SSID was empty or invalid.
     InvalidSsid(String),
+    /// Connection attempt to a given SSID failed.
     ConnectionFailed(String),
 }
 
@@ -22,6 +30,9 @@ impl fmt::Display for NMError {
 
 impl std::error::Error for NMError {}
 
+/// Allows automatic conversion from `zbus::Error` to this error type.
+///
+/// This enables usage of `?` in async proxy/call code returning `NMError`.
 impl From<ZbusError> for NMError {
     fn from(err: ZbusError) -> Self {
         NMError::Dbus(err)

@@ -3,6 +3,7 @@ use crate::device::types::DeviceType;
 use std::result::Result;
 use zbus::{self, Connection, proxy, zvariant::OwnedObjectPath};
 
+/// D-Bus proxy interface for a NetworkManager device
 #[proxy(
     default_path = "/org/freedesktop/NetworkManager/Device",
     default_service = "org.freedesktop.NetworkManager",
@@ -10,10 +11,17 @@ use zbus::{self, Connection, proxy, zvariant::OwnedObjectPath};
     assume_defaults = true
 )]
 pub trait Device {
+    /// The D-Bus `DeviceType` property.
+    ///
+    /// Returns the raw numeric type of the device (e.g., 2 for Wi-Fi).
     #[zbus(property)]
     fn device_type(&self) -> zbus::Result<u32>;
 }
 
+///Client for interacting with a single NetworkManager device.
+///
+///Holds a D-Bus proxy and a reference to the device path. Provides
+///methods to query device properties asynchronously.
 pub struct DeviceClient<'a> {
     conn: &'a Connection,
     proxy: DeviceProxy<'a>,
@@ -21,26 +29,33 @@ pub struct DeviceClient<'a> {
 }
 
 impl<'a> DeviceClient<'a> {
+    /// Creates a new `DeviceClient`.
+    ///
+    /// # Arguments
+    ///
+    /// * `conn` - A reference to an active D-Bus `Connection`.
+    /// * `path` - A reference to the device's D-Bus object path.
+    ///
+    /// # Returns
+    ///
+    ///`Result<Self, NMError>` - Returns the client or
+    /// an error if the proxy cannot be built.
     pub async fn new(conn: &'a Connection, path: &'a OwnedObjectPath) -> Result<Self, NMError> {
-        let proxy = DeviceProxy::builder(conn)
-            .path(path)?
-            .build()
-            .await
-            .map_err(|err| NMError::Dbus(err))?;
+        let proxy = DeviceProxy::builder(conn).path(path)?.build().await?;
 
         Ok(Self { conn, proxy, path })
     }
 
+    /// Returns the object path of the device.
     pub fn path(&self) -> &OwnedObjectPath {
         &self.path
     }
 
+    /// Returns the device type as a `DeviceType` enum.
+    ///
+    ///Internally queries the `DeviceType` D-Bus property asynchronously.
     pub async fn get_device_type(&self) -> Result<DeviceType, NMError> {
-        let raw_type = self
-            .proxy
-            .device_type()
-            .await
-            .map_err(|err| NMError::Dbus(err))?;
+        let raw_type = self.proxy.device_type().await?;
         Ok(DeviceType::from(raw_type))
     }
 }

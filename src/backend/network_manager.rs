@@ -2,6 +2,9 @@ use crate::backend::error::NMError;
 use std::result::Result;
 use zbus::{self, Connection, proxy, zvariant::OwnedObjectPath};
 
+/// D-Bus proxy interface for `org.freedesktop.NetworkManager`.
+///
+/// Provides async methods to retrieve device object paths from NetworkManager.
 #[proxy(interface = "org.freedesktop.NetworkManager", assume_defaults = true)]
 pub trait NetworkManager {
     // Method for GetDevices D-Bus
@@ -10,19 +13,35 @@ pub trait NetworkManager {
     async fn get_all_devices(&self) -> Result<Vec<OwnedObjectPath>, NMError>;
 }
 
+/// Client for interacting with the NetworkManager service.
+///
+/// Holds a D-Bus connection and a proxy for calling NetworkManager methods.
 pub struct NetworkManagerClient<'a> {
     conn: &'a Connection,
     proxy: NetworkManagerProxy<'a>,
 }
 
 impl<'a> NetworkManagerClient<'a> {
+    /// Creates a new `NetworkManagerClient` using the given D-Bus connection.
+    ///
+    /// # Arguments
+    ///
+    /// * `conn` - A reference to a live D-Bus `Connection`.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `NetworkManagerClient` or an `NMError` if
+    /// the proxy cannot be built.
     pub async fn new(conn: &'a Connection) -> Result<Self, NMError> {
-        let proxy = NetworkManagerProxy::new(conn)
-            .await
-            .map_err(|err| NMError::Dbus(err))?;
+        let proxy = NetworkManagerProxy::new(conn).await?;
         Ok(Self { conn, proxy })
     }
 
+    /// Returns the paths of all active devices.
+    ///
+    /// # Errors
+    ///
+    /// Returns `NMError::NoDeviceFound` if no devices are available.
     pub async fn get_device_paths(&self) -> Result<Vec<OwnedObjectPath>, NMError> {
         let devices = self.proxy.get_devices().await?;
         if devices.is_empty() {
