@@ -1,1 +1,2 @@
-mod wifi;
+pub mod backend;
+pub mod device;
