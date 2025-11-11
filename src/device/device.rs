@@ -51,6 +51,10 @@ impl<'a> DeviceClient<'a> {
         &self.path
     }
 
+    pub fn conn(&self) -> &Connection {
+        &self.conn
+    }
+
     /// Returns the device type as a `DeviceType` enum.
     ///
     ///Internally queries the `DeviceType` D-Bus property asynchronously.
