@@ -1,38 +1,33 @@
-use wifi_gui::backend::network_manager::NetworkManagerClient;
+use wifi_gui::backend::{error::NMError, network_manager::NetworkManagerClient};
 use wifi_gui::device::device::DeviceClient;
+use wifi_gui::device::types::DeviceType;
+use wifi_gui::device::wifi::wifi_device::WirelessClient;
 use zbus::{self, Connection};
 
 #[tokio::main]
-async fn main() {
-    let conn = Connection::system().await.unwrap();
+async fn main() -> Result<(), NMError> {
+    let conn = Connection::system().await?;
 
-    let nm = match NetworkManagerClient::new(&conn).await {
-        Ok(client) => {
-            print!("Connected to NetworkManager");
-            client
+    let nm = NetworkManagerClient::new(&conn).await?;
+
+    let devices = nm.get_device_paths().await?;
+
+    for device_path in &devices {
+        let device_client = DeviceClient::new(&conn, device_path).await?;
+
+        if !matches!(device_client.get_device_type().await?, DeviceType::Wifi) {
+            continue;
         }
-        Err(err) => {
-            eprintln!("Failed to create NetworkManagerClient: {}", err);
-            return;
+
+        let wifi_client = WirelessClient::new(&device_client).await?;
+        wifi_client.scan().await?;
+
+        let access_points = wifi_client.list_access_points().await?;
+        println!("Found {} access points:", access_points.len());
+        for ap in access_points {
+            println!(" - {}", ap)
         }
-    };
-
-    let devices = match nm.get_device_paths().await {
-        Ok(list) => list,
-        Err(err) => {
-            eprintln!("Failed to get devices: {}", err);
-            return;
-        }
-    };
-
-    if let Some(first_dev) = devices.first() {
-        println!("\nInspecting first device: {}", first_dev);
-
-        let device_client = DeviceClient::new(&conn, first_dev).await.unwrap();
-        let device_type = device_client.get_device_type().await.unwrap();
-
-        println!("Device type: {:?}", device_type)
-    } else {
-        println!("⚠️ No devices found.");
     }
+
+    Ok(())
 }
