@@ -24,8 +24,17 @@ async fn main() -> Result<(), NMError> {
 
         let access_points = wifi_client.list_access_points().await?;
         println!("Found {} access points:", access_points.len());
+
         for ap in access_points {
-            println!(" - {}", ap)
+            let ssid = ap.ssid().await.unwrap_or_else(|_| "<hidden>".into());
+            let strength = ap.strength().await.unwrap_or(0);
+            let freq = ap.frequency().await.unwrap_or(0);
+            let security = ap.security().await.unwrap();
+
+            println!(
+                "SSID: {:<25} | Strength: {:>3}% | Freq: {:>4}MHz | Sec: {:?}",
+                ssid, strength, freq, security
+            );
         }
     }
 
