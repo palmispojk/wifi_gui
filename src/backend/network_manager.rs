@@ -1,6 +1,9 @@
-use crate::backend::error::NMError;
+use crate::{backend::error::NMError, device::wifi::sec_types::WifiSecurity};
 use std::result::Result;
-use zbus::{self, Connection, proxy, zvariant::OwnedObjectPath};
+use zbus::{
+    self, Connection, proxy,
+    zvariant::{OwnedObjectPath, Value},
+};
 
 /// D-Bus proxy interface for `org.freedesktop.NetworkManager`.
 ///
@@ -11,6 +14,13 @@ pub trait NetworkManager {
     async fn get_devices(&self) -> Result<Vec<OwnedObjectPath>, NMError>;
     //
     async fn get_all_devices(&self) -> Result<Vec<OwnedObjectPath>, NMError>;
+
+    async fn add_and_activate_connection(
+        &self,
+        connection: Value<'_>,
+        device: &OwnedObjectPath,
+        specific_object: &OwnedObjectPath,
+    ) -> Result<(OwnedObjectPath, OwnedObjectPath), NMError>;
 }
 
 /// Client for interacting with the NetworkManager service.
@@ -48,6 +58,22 @@ impl<'a> NetworkManagerClient<'a> {
             return Err(NMError::NoDeviceFound);
         }
         Ok(devices)
+    }
+
+    pub async fn connect_to_wifi(
+        &self,
+        device_path: &OwnedObjectPath,
+        ap_path: &OwnedObjectPath,
+        security: WifiSecurity,
+        password: Option<&str>,
+    ) -> Result<(), NMError> {
+        let connection_dict = Value::from(security.to_nm_dict(password));
+
+        self.proxy
+            .add_and_activate_connection(connection_dict, device_path, ap_path)
+            .await?;
+
+        Ok(())
     }
 }
 
