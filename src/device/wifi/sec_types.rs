@@ -1,5 +1,7 @@
 #![allow(clippy::bad_bit_mask)]
 use bitflags::bitflags;
+use std::str::FromStr;
+use zbus::zvariant::{Dict, Signature, Value};
 
 bitflags! {
     /// access point flags for wifi
@@ -26,16 +28,6 @@ bitflags! {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum WifiSecurity {
-    Open,
-    Wep,
-    Wpa,
-    Wpa2,
-    Enterprise,
-    Unknown,
-}
-
 impl From<NM80211ApSecFlags> for WifiSecurity {
     fn from(flags: NM80211ApSecFlags) -> Self {
         if flags.is_empty() {
@@ -58,5 +50,140 @@ impl From<NM80211ApSecFlags> for WifiSecurity {
         } else {
             WifiSecurity::Unknown
         }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WifiSecurity {
+    Open,
+    Wep,
+    Wpa,
+    Wpa2,
+    Enterprise,
+    Unknown,
+}
+
+impl WifiSecurity {
+    pub fn to_nm_dict<'a>(&self, password: Option<&'a str>) -> Dict<'a, 'a> {
+        fn make_dict<'a>(
+            key_mgmt: &'a str,
+            pwd_key: &'a str,
+            password: Option<&'a str>,
+        ) -> Dict<'a, 'a> {
+            let sig = Signature::from_str("v").expect("Signature for v should be possible.");
+            let mut dict = Dict::new(&Signature::from_str("s").unwrap(), &sig);
+            dict.add("key-mgmt", Value::from(key_mgmt))
+                .expect("Adding mgmt key to inner dict should not throw error!");
+            if let Some(pwd) = password {
+                dict.add(pwd_key, Value::from(pwd))
+                    .expect("adding password key should not throw error when adding to dict!");
+            }
+            dict
+        }
+        match self {
+            WifiSecurity::Open | WifiSecurity::Unknown => Dict::new(
+                &Signature::from_str("s").unwrap(),
+                &Signature::from_str("a{sv}").unwrap(),
+            ),
+
+            WifiSecurity::Wep => make_dict("none", "wep-key0", password),
+
+            WifiSecurity::Wpa | WifiSecurity::Wpa2 => make_dict("wpa-psk", "psk", password),
+
+            WifiSecurity::Enterprise => make_dict("wpa-eap", "password", password),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use zbus::zvariant::{Dict, Value};
+
+    fn dict_keys(dict: &Dict<'_, '_>) -> Vec<String> {
+        dict.iter()
+            .map(|(k, _)| k.to_string().trim_matches('"').to_string())
+            .collect()
+    }
+
+    fn dict_get_string(dict: &Dict, key: &str) -> String {
+        dict.get::<&str, Value>(&key)
+            .unwrap_or_else(|_| panic!("Missing key: {}", key))
+            .unwrap()
+            .clone()
+            .try_into()
+            .unwrap_or_else(|_| panic!("Value for {} is not a string", key))
+    }
+
+    #[test]
+    fn test_open_security_empty_dict() {
+        let dict = WifiSecurity::Open.to_nm_dict(None);
+
+        assert_eq!(dict.iter().count(), 0);
+    }
+
+    #[test]
+    fn test_unknown_security_empty_dict() {
+        let dict = WifiSecurity::Unknown.to_nm_dict(None);
+
+        assert_eq!(dict.iter().count(), 0);
+    }
+
+    #[test]
+    fn test_wep_correct_dict() {
+        let dict = WifiSecurity::Wep.to_nm_dict(Some("test"));
+
+        let keys = dict_keys(&dict);
+
+        assert_eq!(keys.len(), 2);
+
+        assert!(keys.contains(&"key-mgmt".into()));
+        assert!(keys.contains(&"wep-key0".into()));
+
+        assert_eq!(dict_get_string(&dict, "key-mgmt"), "none");
+
+        assert_eq!(dict_get_string(&dict, "wep-key0"), "test");
+    }
+
+    #[test]
+    fn tets_wpa_correct_dict() {
+        let dict = WifiSecurity::Wpa.to_nm_dict(Some("test"));
+
+        let keys = dict_keys(&dict);
+        assert_eq!(keys.len(), 2);
+
+        assert!(keys.contains(&"key-mgmt".into()));
+        assert!(keys.contains(&"psk".into()));
+
+        assert_eq!(dict_get_string(&dict, "key-mgmt"), "wpa-psk");
+        assert_eq!(dict_get_string(&dict, "psk"), "test");
+    }
+
+    #[test]
+    fn test_wpa2_correct_dict() {
+        let dict = WifiSecurity::Wpa2.to_nm_dict(Some("test"));
+
+        let keys = dict_keys(&dict);
+        assert_eq!(keys.len(), 2);
+
+        assert!(keys.contains(&"key-mgmt".into()));
+        assert!(keys.contains(&"psk".into()));
+
+        assert_eq!(dict_get_string(&dict, "key-mgmt"), "wpa-psk");
+        assert_eq!(dict_get_string(&dict, "psk"), "test");
+    }
+
+    #[test]
+    fn test_enterprise_correct_dict() {
+        let dict = WifiSecurity::Enterprise.to_nm_dict(Some("test"));
+
+        let keys = dict_keys(&dict);
+        assert_eq!(keys.len(), 2);
+
+        assert!(keys.contains(&"key-mgmt".into()));
+        assert!(keys.contains(&"password".into()));
+
+        assert_eq!(dict_get_string(&dict, "key-mgmt"), "wpa-eap");
+        assert_eq!(dict_get_string(&dict, "password"), "test");
     }
 }
