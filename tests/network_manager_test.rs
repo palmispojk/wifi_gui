@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use wifi_gui::backend::error::NMError;
 use wifi_gui::backend::network_manager::NetworkManagerClient;
 
@@ -7,7 +8,9 @@ async fn test_create_nm_client() {
         .await
         .expect("System bus expected!");
 
-    let client = NetworkManagerClient::new(&conn).await;
+    let conn_arc = Arc::new(conn);
+
+    let client = NetworkManagerClient::new(conn_arc.clone()).await;
 
     assert!(client.is_ok(), "Failed to create NetworkManagerClient");
 }
@@ -17,7 +20,10 @@ async fn test_get_device_paths() {
     let conn = zbus::Connection::system()
         .await
         .expect("System bus expected!");
-    let client = NetworkManagerClient::new(&conn).await.unwrap();
+
+    let conn_arc = Arc::new(conn);
+
+    let client = NetworkManagerClient::new(conn_arc.clone()).await.unwrap();
 
     match client.get_device_paths().await {
         Ok(devices) => {

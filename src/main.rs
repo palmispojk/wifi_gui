@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use wifi_gui::backend::{error::NMError, network_manager::NetworkManagerClient};
 use wifi_gui::device::device::DeviceClient;
 use wifi_gui::device::types::DeviceType;
@@ -6,14 +7,14 @@ use zbus::{self, Connection};
 
 #[tokio::main]
 async fn main() -> Result<(), NMError> {
-    let conn = Connection::system().await?;
+    let conn = Arc::new(Connection::system().await?);
 
-    let nm = NetworkManagerClient::new(&conn).await?;
+    let nm = NetworkManagerClient::new(conn.clone()).await?;
 
     let devices = nm.get_device_paths().await?;
 
-    for device_path in &devices {
-        let device_client = DeviceClient::new(&conn, device_path).await?;
+    for device_path in devices {
+        let device_client = DeviceClient::new(conn.clone(), device_path).await?;
 
         if !matches!(device_client.get_device_type().await?, DeviceType::Wifi) {
             continue;
