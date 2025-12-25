@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::device::device::DeviceClient;
 use crate::{backend::error::NMError, device::wifi::access_point::AccessPointClient};
 
@@ -26,28 +28,31 @@ trait Wireless {
     fn access_points(&self) -> zbus::Result<Vec<zbus::zvariant::OwnedObjectPath>>;
 }
 
-pub struct WirelessClient<'a> {
-    proxy: WirelessProxy<'a>,
-    path: &'a OwnedObjectPath,
-    conn: &'a Connection,
+pub struct WirelessClient {
+    proxy: WirelessProxy<'static>,
+    path: OwnedObjectPath,
+    conn: Arc<Connection>,
 }
 
-impl<'a> WirelessClient<'a> {
-    pub async fn new(device: &'a DeviceClient<'a>) -> Result<Self, NMError> {
-        let path = device.path();
+impl WirelessClient {
+    pub async fn new(device: &DeviceClient) -> Result<Self, NMError> {
+        let path = device.path().clone();
 
-        let conn = device.conn();
+        let conn = device.conn().clone();
 
-        let proxy = WirelessProxy::builder(conn).path(path)?.build().await?;
+        let proxy = WirelessProxy::builder(&conn)
+            .path(path.clone())?
+            .build()
+            .await?;
 
         Ok(Self { proxy, path, conn })
     }
 
-    pub async fn list_access_points(&self) -> Result<Vec<AccessPointClient<'a>>, NMError> {
+    pub async fn list_access_points(&self) -> Result<Vec<AccessPointClient>, NMError> {
         let ap_paths = self.proxy.get_all_access_points().await?;
         let mut access_points = Vec::with_capacity(ap_paths.len());
         for path in ap_paths.into_iter() {
-            let ap_client = AccessPointClient::new(self.conn, path).await?;
+            let ap_client = AccessPointClient::new(self.conn.clone(), path).await?;
             access_points.push(ap_client);
         }
 

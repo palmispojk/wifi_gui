@@ -1,5 +1,5 @@
 use crate::{backend::error::NMError, device::wifi::sec_types::WifiSecurity};
-use std::result::Result;
+use std::{result::Result, sync::Arc};
 use zbus::{
     self, Connection, proxy,
     zvariant::{OwnedObjectPath, Value},
@@ -26,12 +26,12 @@ pub trait NetworkManager {
 /// Client for interacting with the NetworkManager service.
 ///
 /// Holds a D-Bus connection and a proxy for calling NetworkManager methods.
-pub struct NetworkManagerClient<'a> {
-    conn: &'a Connection,
-    proxy: NetworkManagerProxy<'a>,
+pub struct NetworkManagerClient {
+    conn: Arc<Connection>,
+    proxy: NetworkManagerProxy<'static>,
 }
 
-impl<'a> NetworkManagerClient<'a> {
+impl NetworkManagerClient {
     /// Creates a new `NetworkManagerClient` using the given D-Bus connection.
     ///
     /// # Arguments
@@ -42,8 +42,8 @@ impl<'a> NetworkManagerClient<'a> {
     ///
     /// Returns a `NetworkManagerClient` or an `NMError` if
     /// the proxy cannot be built.
-    pub async fn new(conn: &'a Connection) -> Result<Self, NMError> {
-        let proxy = NetworkManagerProxy::new(conn).await?;
+    pub async fn new(conn: Arc<Connection>) -> Result<Self, NMError> {
+        let proxy = NetworkManagerProxy::new(&conn).await?;
         Ok(Self { conn, proxy })
     }
 

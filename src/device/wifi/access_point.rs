@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::device::wifi::sec_types::{NM80211ApFlags, NM80211ApSecFlags, WifiSecurity};
 use zbus::{Connection, proxy, zvariant::OwnedObjectPath};
 
@@ -30,14 +32,14 @@ trait AccessPoint {
     fn rsn_flags(&self) -> zbus::Result<u32>;
 }
 
-pub struct AccessPointClient<'a> {
-    proxy: AccessPointProxy<'a>,
+pub struct AccessPointClient {
+    proxy: AccessPointProxy<'static>,
     path: OwnedObjectPath,
 }
 
-impl<'a> AccessPointClient<'a> {
-    pub async fn new(conn: &'a Connection, path: OwnedObjectPath) -> Result<Self, NMError> {
-        let proxy = AccessPointProxy::builder(conn)
+impl AccessPointClient {
+    pub async fn new(conn: Arc<Connection>, path: OwnedObjectPath) -> Result<Self, NMError> {
+        let proxy = AccessPointProxy::builder(&conn)
             .path(path.clone())?
             .build()
             .await?;

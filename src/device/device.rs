@@ -1,6 +1,6 @@
 use crate::backend::error::NMError;
 use crate::device::types::DeviceType;
-use std::result::Result;
+use std::{result::Result, sync::Arc};
 use zbus::{self, Connection, proxy, zvariant::OwnedObjectPath};
 
 /// D-Bus proxy interface for a NetworkManager device
@@ -22,13 +22,13 @@ pub trait Device {
 ///
 ///Holds a D-Bus proxy and a reference to the device path. Provides
 ///methods to query device properties asynchronously.
-pub struct DeviceClient<'a> {
-    conn: &'a Connection,
-    proxy: DeviceProxy<'a>,
-    path: &'a OwnedObjectPath,
+pub struct DeviceClient {
+    conn: Arc<Connection>,
+    proxy: DeviceProxy<'static>,
+    path: OwnedObjectPath,
 }
 
-impl<'a> DeviceClient<'a> {
+impl DeviceClient {
     /// Creates a new `DeviceClient`.
     ///
     /// # Arguments
@@ -40,8 +40,11 @@ impl<'a> DeviceClient<'a> {
     ///
     ///`Result<Self, NMError>` - Returns the client or
     /// an error if the proxy cannot be built.
-    pub async fn new(conn: &'a Connection, path: &'a OwnedObjectPath) -> Result<Self, NMError> {
-        let proxy = DeviceProxy::builder(conn).path(path)?.build().await?;
+    pub async fn new(conn: Arc<Connection>, path: OwnedObjectPath) -> Result<Self, NMError> {
+        let proxy = DeviceProxy::builder(&conn)
+            .path(path.clone())?
+            .build()
+            .await?;
 
         Ok(Self { conn, proxy, path })
     }
@@ -51,7 +54,7 @@ impl<'a> DeviceClient<'a> {
         &self.path
     }
 
-    pub fn conn(&self) -> &Connection {
+    pub fn conn(&self) -> &Arc<Connection> {
         &self.conn
     }
 
