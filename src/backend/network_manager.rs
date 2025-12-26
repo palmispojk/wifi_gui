@@ -4,13 +4,17 @@ use crate::{
         device::DeviceClient,
         types::DeviceType,
         wifi::{
-            access_point::NetworkDisplayInfo, sec_types::WifiSecurity, wifi_device::WirelessClient,
+            access_point::{AccessPointUpdate, NetworkDisplayInfo},
+            sec_types::WifiSecurity,
+            wifi_device::WirelessClient,
         },
     },
 };
-use std::{result::Result, sync::Arc};
+use futures_util::stream::StreamExt;
+use std::{collections::HashMap, result::Result, sync::Arc};
+use tokio::sync::mpsc;
 use zbus::{
-    self, Connection, proxy,
+    self, Connection, MatchRule, MessageStream, proxy,
     zvariant::{OwnedObjectPath, Value},
 };
 
@@ -103,6 +107,45 @@ impl NetworkManagerClient {
             .add_and_activate_connection(connection_dict, device_path, ap_path)
             .await?;
 
+        Ok(())
+    }
+
+    pub async fn listen_for_changes(
+        &self,
+        tx: mpsc::Sender<AccessPointUpdate>,
+    ) -> Result<(), NMError> {
+        let rule = MatchRule::builder()
+            .msg_type(zbus::message::Type::Signal)
+            .interface("org.freedesktop.DBus.Properties")?
+            .member("PropertiesChanged")?
+            .arg(0, "org.freedesktop.NetworkManager.AccessPoint")?
+            .build();
+
+        let mut stream = MessageStream::for_match_rule(rule, &self.conn.clone(), None).await?;
+
+        tokio::spawn(async move {
+            while let Some(Ok(msg)) = stream.next().await {
+                let path = msg
+                    .header()
+                    .path()
+                    .map(|p| p.to_string())
+                    .unwrap_or_default();
+
+                if let Ok((_interface, changed, _invalidated)) =
+                    msg.body()
+                        .deserialize::<(String, HashMap<String, Value>, Vec<String>)>()
+                {
+                    if let Some(v) = changed.get("Strength") {
+                        if let Ok(val) = u8::try_from(v) {
+                            let _ = tx.send(AccessPointUpdate::PropertyChanged {
+                                path: path.clone(),
+                                strength: val,
+                            });
+                        }
+                    }
+                }
+            }
+        });
         Ok(())
     }
 }

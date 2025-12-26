@@ -1,6 +1,5 @@
+use crate::device::wifi::access_point::{AccessPointUpdate, NetworkDisplayInfo};
 use ratatui::widgets::ListState;
-
-use crate::device::wifi::access_point::NetworkDisplayInfo;
 
 pub struct AppState {
     pub networks: Vec<NetworkDisplayInfo>,
@@ -10,6 +9,24 @@ pub struct AppState {
 }
 
 impl AppState {
+    pub fn apply_update(&mut self, update: AccessPointUpdate) {
+        match update {
+            AccessPointUpdate::PropertyChanged { path, strength } => {
+                if let Some(network) = self.networks.iter_mut().find(|n| n.path == path) {
+                    network.strength = strength;
+                }
+            }
+
+            AccessPointUpdate::Added(new_network) => {
+                self.networks.push(new_network);
+            }
+
+            AccessPointUpdate::Removed(path) => {
+                self.networks.retain(|n| n.path != path);
+            }
+        }
+    }
+
     pub fn new() -> Self {
         Self {
             networks: Vec::new(),

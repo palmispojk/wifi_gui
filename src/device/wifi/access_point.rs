@@ -80,6 +80,12 @@ impl AccessPointClient {
     }
 }
 
+pub enum AccessPointUpdate {
+    Added(NetworkDisplayInfo),
+    Removed(String),
+    PropertyChanged { path: String, strength: u8 },
+}
+
 #[derive(Debug, Clone)]
 pub struct NetworkDisplayInfo {
     pub ssid: String,
