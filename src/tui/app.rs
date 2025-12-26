@@ -102,3 +102,114 @@ impl AppState {
         self.list_state.select(Some(prev_i));
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    fn mock_network(ssid: &str, strength: u8, path: &str) -> NetworkDisplayInfo {
+        NetworkDisplayInfo {
+            ssid: ssid.into(),
+            strength,
+            path: path.into(),
+            band: "5GHz".into(),
+            is_secure: true,
+        }
+    }
+
+    /// Verifies that multiple access points with the same SSID are deduplicated,
+    /// keeping only the one with the strongest signal.
+    ///
+    /// # Scenario
+    /// 1. Add a network with SSID "A" (50% strength).
+    /// 2. Add another network with SSID "A" (80% strength).
+    /// 3. Assert the state only contains the 80% strength version.
+    #[test]
+    fn test_deduplication_on_added() {
+        let mut app = AppState::new();
+        let net1 = mock_network("A", 50, "/1");
+        let net2 = mock_network("A", 80, "/2");
+
+        app.apply_update(AccessPointUpdate::Added(net1));
+        app.apply_update(AccessPointUpdate::Added(net2));
+
+        assert_eq!(app.networks.len(), 1);
+        assert_eq!(app.networks[0].strength, 80);
+        assert_eq!(app.networks[0].path, "/2");
+    }
+
+    /// Verifies that the UI selection "sticks" to the chosen hardware (path)
+    /// even if its position in the list changes due to sorting.
+    ///
+    /// # Scenario
+    /// 1. Start with two networks where "B" is at the bottom.
+    /// 2. User selects "B" (index 1).
+    /// 3. "B" signal jumps to 90%, causing it to move to index 0.
+    /// 4. Assert that `list_state` updates to index 0, keeping "B" highlighted.
+    #[test]
+    fn test_selection_persistence_after_sort() {
+        let mut app = AppState::new();
+        let net1 = mock_network("A", 50, "/1");
+        let net2 = mock_network("B", 30, "/2");
+
+        app.set_networks(vec![net1.clone(), net2.clone()]);
+        app.selected_path = Some("/2".into());
+
+        app.apply_update(AccessPointUpdate::PropertyChanged {
+            path: "/2".into(),
+            strength: 90,
+        });
+
+        assert_eq!(app.list_state.selected(), Some(0));
+        assert_eq!(app.selected_path.as_ref().unwrap(), "/2");
+    }
+
+    /// Ensures that if the currently selected network is removed from the list,
+    /// the application gracefully falls back to selecting the next available item.
+    ///
+    /// This prevents the UI from panicking or showing a ghost selection.
+    ///
+    /// # Scenario
+    /// 1. Select the second item in a two-item list.
+    /// 2. Remove that second item via a backend signal.
+    /// 3. Assert the selection resets to the first remaining item.
+    #[test]
+    fn test_remove_selected_item() {
+        // test if logic is correct when removing the selected item
+        let mut app = AppState::new();
+        let net1 = mock_network("A", 50, "/1");
+        let net2 = mock_network("B", 30, "/2");
+        app.set_networks(vec![net1.clone(), net2.clone()]);
+
+        app.next();
+        app.apply_update(AccessPointUpdate::Removed("/2".to_string()));
+
+        assert_eq!(app.networks.len(), 1);
+        assert_eq!(app.list_state.selected(), Some(0));
+        assert_eq!(app.selected_path, Some("/1".to_string()));
+    }
+
+    /// Tests that the application state resets correctly when the only available network is removed.
+    ///
+    /// This ensures that the UI doesn't attempt to maintain a selection on a non-existent
+    /// path, which prevents index-out-of-bounds errors and "ghost" highlights during rendering.
+    ///
+    /// # Scenario
+    /// 1. Initialize the app with a single network.
+    /// 2. Receive a signal that this specific network has been removed.
+    /// 3. Assert that the data list, the unique path tracker, and the visual
+    ///    selection state are all cleared.
+    #[test]
+    fn test_remove_last_item() {
+        let mut app = AppState::new();
+        let net1 = mock_network("A", 50, "/1");
+
+        app.set_networks(vec![net1.clone()]);
+
+        app.apply_update(AccessPointUpdate::Removed("/1".to_string()));
+
+        assert_eq!(app.networks.len(), 0);
+        assert_eq!(app.selected_path, None);
+        assert_eq!(app.list_state.selected(), None);
+    }
+}

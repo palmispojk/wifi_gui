@@ -163,7 +163,7 @@ impl NetworkManagerClient {
 }
 
 #[cfg(test)]
-mod tests {
+mod tokio_tests {
     use super::*;
     use zbus::zvariant::OwnedObjectPath;
 
