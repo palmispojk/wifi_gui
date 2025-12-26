@@ -79,3 +79,28 @@ impl AccessPointClient {
         Ok(NM80211ApFlags::from_bits_truncate(raw))
     }
 }
+
+#[derive(Debug, Clone)]
+pub struct NetworkDisplayInfo {
+    pub ssid: String,
+    pub strength: u8,
+    pub band: &'static str,
+    pub is_secure: bool,
+    pub path: String,
+}
+
+impl NetworkDisplayInfo {
+    pub async fn new(ap: &AccessPointClient) -> Result<Self, NMError> {
+        Ok(Self {
+            ssid: ap.ssid().await.unwrap_or_else(|_| "<hidden>".into()),
+            strength: ap.strength().await.unwrap_or(0),
+            band: if ap.frequency().await.unwrap_or(0) > 4000 {
+                "5GHz"
+            } else {
+                "2.4GHz"
+            },
+            is_secure: ap.security().await.is_ok(),
+            path: ap.path().to_string(),
+        })
+    }
+}
