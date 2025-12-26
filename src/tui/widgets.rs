@@ -6,6 +6,8 @@ use ratatui::{
     widgets::{Block, Borders, List, ListItem, Paragraph},
 };
 
+use crate::tui::models::NetworkDisplayExt;
+
 use crate::tui::app::AppState;
 
 pub fn draw_ui(f: &mut Frame, app: &mut AppState) {
@@ -32,7 +34,7 @@ fn render_network_list(f: &mut Frame, app: &mut AppState, area: Rect) {
                 ),
                 Span::raw(format!(" {:<20} ", net.ssid)),
                 Span::styled(
-                    format!(" {:<5} ", net.band()),
+                    format!(" {:<5} ", net.band),
                     Style::default().fg(Color::DarkGray),
                 ),
                 Span::raw(security_icon),

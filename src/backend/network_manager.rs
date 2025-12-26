@@ -1,4 +1,13 @@
-use crate::{backend::error::NMError, device::wifi::sec_types::WifiSecurity};
+use crate::{
+    backend::error::NMError,
+    device::{
+        device::DeviceClient,
+        types::DeviceType,
+        wifi::{
+            access_point::NetworkDisplayInfo, sec_types::WifiSecurity, wifi_device::WirelessClient,
+        },
+    },
+};
 use std::{result::Result, sync::Arc};
 use zbus::{
     self, Connection, proxy,
@@ -58,6 +67,27 @@ impl NetworkManagerClient {
             return Err(NMError::NoDeviceFound);
         }
         Ok(devices)
+    }
+
+    pub async fn scan_all_wifi_networks(&self) -> Result<Vec<NetworkDisplayInfo>, NMError> {
+        let mut results = Vec::new();
+        let paths = self.get_device_paths().await?;
+
+        for path in paths {
+            let dev = DeviceClient::new(self.conn.clone(), path).await?;
+
+            if matches!(dev.get_device_type().await?, DeviceType::Wifi) {
+                let wifi = WirelessClient::new(&dev).await?;
+
+                let _ = wifi.scan().await?;
+
+                let aps = wifi.list_access_points().await?;
+                for ap in aps {
+                    results.push(NetworkDisplayInfo::new(&ap).await?);
+                }
+            }
+        }
+        Ok(results)
     }
 
     pub async fn connect_to_wifi(

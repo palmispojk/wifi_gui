@@ -1,6 +1,6 @@
 use ratatui::widgets::ListState;
 
-use crate::tui::models::NetworkDisplayInfo;
+use crate::device::wifi::access_point::NetworkDisplayInfo;
 
 pub struct AppState {
     pub networks: Vec<NetworkDisplayInfo>,
