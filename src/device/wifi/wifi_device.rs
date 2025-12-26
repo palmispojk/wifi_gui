@@ -30,7 +30,6 @@ trait Wireless {
 
 pub struct WirelessClient {
     proxy: WirelessProxy<'static>,
-    path: OwnedObjectPath,
     conn: Arc<Connection>,
 }
 
@@ -40,12 +39,9 @@ impl WirelessClient {
 
         let conn = device.conn().clone();
 
-        let proxy = WirelessProxy::builder(&conn)
-            .path(path.clone())?
-            .build()
-            .await?;
+        let proxy = WirelessProxy::builder(&conn).path(path)?.build().await?;
 
-        Ok(Self { proxy, path, conn })
+        Ok(Self { proxy, conn })
     }
 
     pub async fn list_access_points(&self) -> Result<Vec<AccessPointClient>, NMError> {
