@@ -74,7 +74,7 @@ impl NetworkManagerClient {
     }
 
     pub async fn scan_all_wifi_networks(&self) -> Result<Vec<NetworkDisplayInfo>, NMError> {
-        let mut results = Vec::new();
+        let mut best_networks: HashMap<String, NetworkDisplayInfo> = HashMap::new();
         let paths = self.get_device_paths().await?;
 
         for path in paths {
@@ -87,10 +87,22 @@ impl NetworkManagerClient {
 
                 let aps = wifi.list_access_points().await?;
                 for ap in aps {
-                    results.push(NetworkDisplayInfo::new(&ap).await?);
+                    let info = NetworkDisplayInfo::new(&ap).await?;
+                    let ssid = info.ssid.clone();
+
+                    best_networks
+                        .entry(ssid)
+                        .and_modify(|existing| {
+                            if info.strength > existing.strength {
+                                *existing = info.clone();
+                            }
+                        })
+                        .or_insert(info);
                 }
             }
         }
+        let mut results: Vec<NetworkDisplayInfo> = best_networks.into_values().collect();
+        results.sort_by(|a, b| b.strength.cmp(&a.strength));
         Ok(results)
     }
 
