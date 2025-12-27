@@ -11,7 +11,7 @@ use ratatui::{
 pub fn draw_ui(f: &mut Frame, app: &mut AppState) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Min(3), Constraint::Length(10)])
+        .constraints([Constraint::Min(3), Constraint::Length(3)])
         .split(f.area());
 
     render_network_list(f, app, chunks[0]);
