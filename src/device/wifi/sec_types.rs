@@ -4,7 +4,7 @@ use std::str::FromStr;
 use zbus::zvariant::{Dict, Signature, Value};
 
 bitflags! {
-    /// access point flags for wifi
+    /// Access point flags for wifi
     pub struct NM80211ApFlags: u32 {
         const NONE    = 0x00000000;
         const PRIVACY = 0x00000001;
@@ -12,7 +12,7 @@ bitflags! {
 }
 
 bitflags! {
-    /// flags for security in wifi access points
+    /// Flags for security in wifi access points
     pub struct NM80211ApSecFlags: u32 {
         const NONE             = 0x0000_0000;
         const PAIR_WEP40       = 0x0000_0001;
@@ -29,6 +29,7 @@ bitflags! {
 }
 
 impl From<NM80211ApSecFlags> for WifiSecurity {
+    /// Implements `from` for the wifi security from the bitflags to a more readable enum
     fn from(flags: NM80211ApSecFlags) -> Self {
         if flags.is_empty() {
             WifiSecurity::Open
@@ -53,6 +54,7 @@ impl From<NM80211ApSecFlags> for WifiSecurity {
     }
 }
 
+/// Enum for doing security flags for wifi access points more readable and easier to handle
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WifiSecurity {
     Open,
@@ -64,7 +66,10 @@ pub enum WifiSecurity {
 }
 
 impl WifiSecurity {
+    /// Function to do the NetworkManager dictionary that gets passed in login.
+    /// Is dependent on the security type of the access point
     pub fn to_nm_dict<'a>(&self, password: Option<&'a str>) -> Dict<'a, 'a> {
+        /// Helper function to package a dictionary for the login
         fn make_dict<'a>(
             key_mgmt: &'a str,
             pwd_key: &'a str,

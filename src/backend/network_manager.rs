@@ -73,6 +73,15 @@ impl NetworkManagerClient {
         Ok(devices)
     }
 
+    /// Performs a full scan of all available Wi-Fi access points across all devices.
+    ///
+    /// This function iterates through all network devices, filters for Wi-Fi hardware,
+    /// triggers a scan, and deduplicates the results by SSID to return only the
+    /// strongest signal for each network.
+    ///
+    /// # Errors
+    /// Returns an [`NMError`] if the D-Bus connection fails or if NetworkManager
+    /// is unreachable.
     pub async fn scan_all_wifi_networks(&self) -> Result<Vec<NetworkDisplayInfo>, NMError> {
         let mut best_networks: HashMap<String, NetworkDisplayInfo> = HashMap::new();
         let paths = self.get_device_paths().await?;
@@ -106,6 +115,16 @@ impl NetworkManagerClient {
         Ok(results)
     }
 
+    /// Connects to a wifi accesspoint
+    ///
+    /// # Arguments
+    /// `device_path` - A reference to the objectpath of the device
+    /// `ap_path` - A reference path to the accesspoint
+    /// `security` - What security the accesspoint
+    /// `password` - An optional password if there is no password needed
+    ///
+    /// # Errors
+    /// `NMError` - for any error with dbus with the proxy or connection
     pub async fn connect_to_wifi(
         &self,
         device_path: &OwnedObjectPath,
@@ -122,6 +141,13 @@ impl NetworkManagerClient {
         Ok(())
     }
 
+    /// Starts a background task to listen for D-Bus signals from NetworkManager.
+    ///
+    /// Specifically listens for `PropertiesChanged` signals on Access Point objects.
+    /// Updates are sent through the provided `mpsc::Sender`.
+    ///
+    /// # Arguments
+    /// * `tx` - An asynchronous channel sender for broadcasting [`AccessPointUpdate`]s.
     pub async fn listen_for_changes(
         &self,
         tx: mpsc::Sender<AccessPointUpdate>,

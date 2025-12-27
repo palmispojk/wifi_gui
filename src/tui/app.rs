@@ -43,6 +43,22 @@ impl AppState {
         self.sync_selection();
     }
 
+    /// Applies the update to the list in the tui when adding, removing or updating an item
+    ///
+    /// When a property gets updated it goes through all the networks. If it finds the same path
+    /// then update the strength and sort the list again.
+    ///
+    /// When a new access point is found it needs to check if the ssid is already there (for mesh
+    /// networks etc). If a network is found, check if the new strength is higher and if so swap
+    /// the new network with the existing one. If not found then enter it. Sort the list again at
+    /// the end.
+    ///
+    /// Remove simply removes and resyncs the list.
+    ///
+    /// # Arguments
+    /// `AccessPointUpdate` - A simple enum for delivering updates across channels from backend to
+    /// frontend
+    ///
     pub fn apply_update(&mut self, update: AccessPointUpdate) {
         match update {
             AccessPointUpdate::PropertyChanged { path, strength } => {
@@ -76,6 +92,8 @@ impl AppState {
         }
     }
 
+    /// Provides the next item in the sorted list
+    /// Used in the scrolling of up and down in the tui
     pub fn next(&mut self) {
         if self.networks.is_empty() {
             return;
@@ -87,6 +105,8 @@ impl AppState {
         self.list_state.select(Some(next_i));
     }
 
+    /// Provides the previous item in the sorted list
+    /// Used in the scrolling of up and down in the tui
     pub fn previous(&mut self) {
         if self.networks.is_empty() {
             return;

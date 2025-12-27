@@ -17,6 +17,7 @@ pub enum NMError {
     ConnectionFailed(String),
 }
 
+/// Display implementation for NMError
 impl fmt::Display for NMError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {

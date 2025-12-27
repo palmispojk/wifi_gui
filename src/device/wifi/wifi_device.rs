@@ -9,6 +9,7 @@ use zbus::{
     zvariant::{OwnedObjectPath, Value},
 };
 
+/// Proxy for the wireless device with Dbus
 #[proxy(
     default_path = "/org/freedesktop/NetworkManager/Wireless",
     default_service = "org.freedesktop.NetworkManager",
@@ -34,6 +35,7 @@ pub struct WirelessClient {
 }
 
 impl WirelessClient {
+    /// creates the proxy from a `&DeviceClient` by cloning `path` and `conn`
     pub async fn new(device: &DeviceClient) -> Result<Self, NMError> {
         let path = device.path().clone();
 
@@ -44,6 +46,7 @@ impl WirelessClient {
         Ok(Self { proxy, conn })
     }
 
+    /// Lists all access points available to the wireless device
     pub async fn list_access_points(&self) -> Result<Vec<AccessPointClient>, NMError> {
         let ap_paths = self.proxy.get_all_access_points().await?;
         let mut access_points = Vec::with_capacity(ap_paths.len());
@@ -55,6 +58,7 @@ impl WirelessClient {
         Ok(access_points)
     }
 
+    /// Scans using the wireless device
     pub async fn scan(&self) -> Result<(), NMError> {
         self.proxy
             .request_scan(std::collections::HashMap::new())
@@ -62,6 +66,7 @@ impl WirelessClient {
             .map_err(|err| NMError::Dbus(err))
     }
 
+    /// Returns the active access point
     pub async fn get_active_ap(&self) -> Result<OwnedObjectPath, NMError> {
         let active_ap = self
             .proxy
