@@ -23,8 +23,6 @@ fn render_network_list(f: &mut Frame, app: &mut AppState, area: Rect) {
         .networks
         .iter()
         .map(|net| {
-            let security_icon = if net.is_secure { "" } else { "" };
-
             let content = Line::from(vec![
                 Span::styled(
                     format!(" {:<4}", net.signal_icon()),
@@ -35,7 +33,7 @@ fn render_network_list(f: &mut Frame, app: &mut AppState, area: Rect) {
                     format!(" {:<5} ", net.band),
                     Style::default().fg(Color::DarkGray),
                 ),
-                Span::raw(security_icon),
+                Span::raw(net.security.to_string()),
             ]);
 
             ListItem::new(content)
