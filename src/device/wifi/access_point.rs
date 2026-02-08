@@ -121,7 +121,7 @@ pub struct NetworkDisplayInfo {
     pub ssid: String,
     pub strength: u8,
     pub band: &'static str,
-    pub is_secure: bool,
+    pub security: WifiSecurity,
     pub path: String,
 }
 
@@ -140,7 +140,7 @@ impl NetworkDisplayInfo {
             } else {
                 "2.4GHz"
             },
-            is_secure: ap.security().await.is_ok(),
+            security: ap.security().await?,
             path: ap.path().to_string(),
         })
     }
