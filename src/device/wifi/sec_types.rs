@@ -1,6 +1,6 @@
 #![allow(clippy::bad_bit_mask)]
 use bitflags::bitflags;
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt};
 use uuid;
 use zbus::zvariant::Value;
 
@@ -110,6 +110,20 @@ impl WifiSecurity {
         }
 
         settings
+    }
+}
+
+impl fmt::Display for WifiSecurity {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            WifiSecurity::Open => "Open",
+            WifiSecurity::Wep => "WEP",
+            WifiSecurity::Wpa => "WPA",
+            WifiSecurity::Wpa2 => "WPA2",
+            WifiSecurity::Enterprise => "Enterprise",
+            WifiSecurity::Unknown => "Unknown",
+        };
+        write!(f, "{}", s)
     }
 }
 
