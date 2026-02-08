@@ -148,6 +148,7 @@ impl NetworkManagerClient {
     /// Connects to a wifi accesspoint
     ///
     /// # Arguments
+    /// `ssid` - `&str` of the ssid used to connect to the access point
     /// `ap_path` - A reference path to the accesspoint
     /// `security` - What security the accesspoint
     /// `password` - An optional password if there is no password needed
