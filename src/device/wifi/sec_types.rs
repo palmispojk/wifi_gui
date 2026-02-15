@@ -1,7 +1,6 @@
 #![allow(clippy::bad_bit_mask)]
 use bitflags::bitflags;
 use std::{collections::HashMap, fmt};
-use uuid;
 use zbus::zvariant::Value;
 
 bitflags! {
@@ -88,12 +87,6 @@ impl WifiSecurity {
         conn.insert("type", "802-11-wireless".into());
         conn.insert("id", String::from_utf8_lossy(ssid).into_owned().into());
 
-        conn.insert(
-            "uuid",
-            uuid::Uuid::new_v5(&uuid::Uuid::NAMESPACE_OID, ssid)
-                .to_string()
-                .into(),
-        );
         settings.insert("connection", conn);
 
         let mut wifi = HashMap::new();
