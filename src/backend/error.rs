@@ -15,6 +15,10 @@ pub enum NMError {
     InvalidSsid(String),
     /// Connection attempt to a given SSID failed.
     ConnectionFailed(String),
+    /// Stream fail with D-Bus
+    SignalError(String),
+    /// Network not found error
+    NetworkNotFound(String),
 }
 
 /// Display implementation for NMError
@@ -25,6 +29,8 @@ impl fmt::Display for NMError {
             NMError::NoDeviceFound => write!(f, "No device found!"),
             NMError::InvalidSsid(ssid) => write!(f, "Invalid SSID {}", ssid),
             NMError::ConnectionFailed(ssid) => write!(f, "Failed to connect to SSID {}", ssid),
+            NMError::SignalError(msg) => write!(f, "Signal error: {}", msg),
+            NMError::NetworkNotFound(msg) => write!(f, "Network not found: {}", msg),
         }
     }
 }
