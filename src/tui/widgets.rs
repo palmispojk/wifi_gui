@@ -1,7 +1,7 @@
 use crate::tui::app::{AppState, AppStatus, InputMode};
 use crate::tui::models::NetworkDisplayExt;
 use ratatui::layout::Position;
-use ratatui::widgets::Clear;
+use ratatui::widgets::{Clear, Wrap};
 use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout, Rect},
@@ -13,7 +13,7 @@ use ratatui::{
 pub fn draw_ui(f: &mut Frame, app: &mut AppState) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Min(3), Constraint::Length(3)])
+        .constraints([Constraint::Min(3), Constraint::Length(4)])
         .split(f.area());
 
     render_network_list(f, app, chunks[0]);
@@ -68,16 +68,18 @@ fn render_status_bar(f: &mut Frame, app: &AppState, area: Rect) {
         None => "Idle",
     };
     let text = format!(
-        " [q] Quit | [↑↓] Navigate | [Enter] Connect |Status: {}",
+        " [q] Quit | [↑↓] Navigate | [Enter] Connect |\nStatus: {}",
         status
     );
 
     f.render_widget(
-        Paragraph::new(text).block(
-            Block::default()
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::DarkGray)),
-        ),
+        Paragraph::new(text)
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .border_style(Style::default().fg(Color::DarkGray)),
+            )
+            .wrap(Wrap { trim: true }),
         area,
     );
 }
