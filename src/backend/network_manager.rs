@@ -1,5 +1,7 @@
 use crate::{
-    backend::error::NMError,
+    backend::{
+        error::NMError, settings::SettingsProxy, settings_connection::SettingsConnectionProxy,
+    },
     device::{
         device::DeviceClient,
         types::DeviceType,
@@ -177,6 +179,32 @@ impl NetworkManagerClient {
         Ok(format!("Connected to Access Point {}", ap_path.to_string()))
     }
 
+    pub async fn forget_network(&self, target_ssid: &str) -> Result<String, NMError> {
+        let settings_proxy = SettingsProxy::new(&self.conn.clone()).await?;
+        let connections = settings_proxy.list_connections().await?;
+
+        for path in connections {
+            let conn_proxy =
+                SettingsConnectionProxy::new_from_path(path, self.conn.clone()).await?;
+            let settings = conn_proxy.get_settings().await?;
+
+            if let Some(wifi_section) = settings.get("802-11-wireless") {
+                if let Some(ssid_value) = wifi_section.get("ssid") {
+                    let stored_ssid = match Vec::<u8>::try_from(ssid_value.clone()) {
+                        Ok(bytes) => String::from_utf8_lossy(&bytes).to_string(),
+                        Err(_) => continue,
+                    };
+
+                    if stored_ssid == target_ssid {
+                        conn_proxy.delete().await?;
+                        return Ok(format!("Forgot network {}", target_ssid));
+                    }
+                }
+            }
+        }
+        return Err(NMError::NetworkNotFound(target_ssid.to_string()));
+    }
+
     /// Starts a background task to listen for D-Bus signals from NetworkManager.
     ///
     /// Specifically listens for `PropertiesChanged` signals on Access Point objects.
@@ -202,8 +230,8 @@ impl NetworkManagerClient {
                 let path = msg
                     .header()
                     .path()
-                    .map(|p| p.to_string())
-                    .unwrap_or_default();
+                    .ok_or_else(|| NMError::SignalError("Message has no path".to_string()))?
+                    .clone();
 
                 if let Ok((_interface, changed, _invalidated)) =
                     msg.body()
@@ -212,13 +240,14 @@ impl NetworkManagerClient {
                     if let Some(v) = changed.get("Strength") {
                         if let Ok(val) = u8::try_from(v) {
                             let _ = tx.send(AccessPointUpdate::PropertyChanged {
-                                path: path.clone(),
+                                path: path.into(),
                                 strength: val,
                             });
                         }
                     }
                 }
             }
+            Ok::<(), NMError>(())
         });
         Ok(())
     }
