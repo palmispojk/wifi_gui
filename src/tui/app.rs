@@ -3,6 +3,7 @@ use crate::{
     tui::{error::FrontendError, handler::AppAction},
 };
 use ratatui::widgets::ListState;
+use zbus::zvariant::OwnedObjectPath;
 
 pub enum InputMode {
     Normal,
@@ -18,7 +19,7 @@ pub enum AppStatus {
 pub struct AppState {
     pub networks: Vec<NetworkDisplayInfo>,
     pub list_state: ListState,
-    pub selected_path: Option<String>,
+    pub selected_path: Option<OwnedObjectPath>,
     pub input_mode: InputMode,
     pub password_buffer: Option<String>,
     pub status: Option<AppStatus>,
@@ -202,7 +203,7 @@ mod test {
         NetworkDisplayInfo {
             ssid: ssid.into(),
             strength,
-            path: path.into(),
+            path: OwnedObjectPath::try_from(path).expect("Weird format in the path."),
             band: "5GHz".into(),
             security: WifiSecurity::Wpa2,
         }
@@ -226,7 +227,7 @@ mod test {
 
         assert_eq!(app.networks.len(), 1);
         assert_eq!(app.networks[0].strength, 80);
-        assert_eq!(app.networks[0].path, "/2");
+        assert_eq!(app.networks[0].path.to_string(), "/2");
     }
 
     /// Verifies that the UI selection "sticks" to the chosen hardware (path)
@@ -244,15 +245,18 @@ mod test {
         let net2 = mock_network("B", 30, "/2");
 
         app.set_networks(vec![net1.clone(), net2.clone()]);
-        app.selected_path = Some("/2".into());
+        app.selected_path = Some(OwnedObjectPath::try_from("/2").expect("Should work for '/2'"));
 
         app.apply_update(AccessPointUpdate::PropertyChanged {
-            path: "/2".into(),
+            path: OwnedObjectPath::try_from("/2").expect("Should work from '/2'"),
             strength: 90,
         });
 
         assert_eq!(app.list_state.selected(), Some(0));
-        assert_eq!(app.selected_path.as_ref().unwrap(), "/2");
+        assert_eq!(
+            app.selected_path,
+            Some(OwnedObjectPath::try_from("/2").expect("Should work from '/2'"))
+        );
     }
 
     /// Ensures that if the currently selected network is removed from the list,
@@ -273,11 +277,16 @@ mod test {
         app.set_networks(vec![net1.clone(), net2.clone()]);
 
         app.next();
-        app.apply_update(AccessPointUpdate::Removed("/2".to_string()));
+        app.apply_update(AccessPointUpdate::Removed(
+            OwnedObjectPath::try_from("/2").expect("Should work for '/2'"),
+        ));
 
         assert_eq!(app.networks.len(), 1);
         assert_eq!(app.list_state.selected(), Some(0));
-        assert_eq!(app.selected_path, Some("/1".to_string()));
+        assert_eq!(
+            app.selected_path,
+            Some(OwnedObjectPath::try_from("/1").expect("Should work for '/1'"))
+        );
     }
 
     /// Tests that the application state resets correctly when the only available network is removed.
@@ -297,7 +306,9 @@ mod test {
 
         app.set_networks(vec![net1.clone()]);
 
-        app.apply_update(AccessPointUpdate::Removed("/1".to_string()));
+        app.apply_update(AccessPointUpdate::Removed(
+            OwnedObjectPath::try_from("/1").expect("Should work for '/1'"),
+        ));
 
         assert_eq!(app.networks.len(), 0);
         assert_eq!(app.selected_path, None);

@@ -111,8 +111,8 @@ impl AccessPointClient {
 /// Enum to handle the transmitting of dynamic updates from listening to the access points
 pub enum AccessPointUpdate {
     Added(NetworkDisplayInfo),
-    Removed(String),
-    PropertyChanged { path: String, strength: u8 },
+    Removed(OwnedObjectPath),
+    PropertyChanged { path: OwnedObjectPath, strength: u8 },
 }
 
 /// Struct to handle the displaying of an access point
@@ -122,7 +122,7 @@ pub struct NetworkDisplayInfo {
     pub strength: u8,
     pub band: &'static str,
     pub security: WifiSecurity,
-    pub path: String,
+    pub path: OwnedObjectPath,
 }
 
 impl NetworkDisplayInfo {
@@ -141,7 +141,7 @@ impl NetworkDisplayInfo {
                 "2.4GHz"
             },
             security: ap.security().await?,
-            path: ap.path().to_string(),
+            path: ap.path().clone(),
         })
     }
 }
