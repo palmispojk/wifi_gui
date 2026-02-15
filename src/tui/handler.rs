@@ -4,24 +4,13 @@ use tokio::sync::mpsc::UnboundedSender;
 use zbus::zvariant::OwnedObjectPath;
 
 use crate::{
-    backend::{error::NMError, network_manager::NetworkManagerClient},
+    backend::network_manager::NetworkManagerClient,
     device::wifi::sec_types::WifiSecurity,
     tui::{
-        app::{AppState, AppStatus, InputMode},
+        app::{AppAction, AppState, AppStatus, InputMode},
         error::FrontendError,
     },
 };
-
-#[derive(Debug)]
-pub enum AppAction {
-    /// takes the ssid to send what we are connecting to
-    ConnectStarted(String),
-    /// has the `Result<String, NMError>` for what happened after connecting.
-    ConnectFinished(Result<String, NMError>),
-    /// To send to the frontend when a FrontendError ocurred.
-    FrontendError(FrontendError),
-    NMError(NMError),
-}
 
 pub async fn handle_connect_input(
     app: &mut AppState,

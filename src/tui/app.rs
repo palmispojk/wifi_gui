@@ -1,6 +1,7 @@
 use crate::{
+    backend::error::NMError,
     device::wifi::access_point::{AccessPointUpdate, NetworkDisplayInfo},
-    tui::{error::FrontendError, handler::AppAction},
+    tui::error::FrontendError,
 };
 use ratatui::widgets::ListState;
 use zbus::zvariant::OwnedObjectPath;
@@ -14,6 +15,17 @@ pub enum AppStatus {
     Error(String),
     IsConnecting(String),
     Status(String),
+}
+
+#[derive(Debug)]
+pub enum AppAction {
+    /// takes the ssid to send what we are connecting to
+    ConnectStarted(String),
+    /// has the `Result<String, NMError>` for what happened after connecting.
+    ConnectFinished(Result<String, NMError>),
+    /// To send to the frontend when a FrontendError ocurred.
+    FrontendError(FrontendError),
+    NMError(NMError),
 }
 
 pub struct AppState {

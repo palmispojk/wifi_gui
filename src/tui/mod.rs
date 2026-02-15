@@ -6,8 +6,8 @@ use tokio::sync::mpsc;
 
 use crate::backend::network_manager::NetworkManagerClient;
 use crate::device::wifi::access_point::AccessPointUpdate;
-use crate::tui::app::{AppState, InputMode};
-use crate::tui::handler::{AppAction, handle_connect_input};
+use crate::tui::app::{AppAction, AppState, InputMode};
+use crate::tui::handler::handle_connect_input;
 use crate::tui::widgets::draw_ui;
 pub mod app;
 pub mod error;
