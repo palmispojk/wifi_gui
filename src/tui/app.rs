@@ -1,12 +1,27 @@
-use crate::device::wifi::access_point::{AccessPointUpdate, NetworkDisplayInfo};
+use crate::{
+    device::wifi::access_point::{AccessPointUpdate, NetworkDisplayInfo},
+    tui::{error::FrontendError, handler::AppAction},
+};
 use ratatui::widgets::ListState;
+
+pub enum InputMode {
+    Normal,
+    PasswordInput,
+}
+
+pub enum AppStatus {
+    Error(String),
+    IsConnecting(String),
+    Status(String),
+}
 
 pub struct AppState {
     pub networks: Vec<NetworkDisplayInfo>,
     pub list_state: ListState,
-    pub is_scanning: bool,
-    pub error_message: Option<String>,
     pub selected_path: Option<String>,
+    pub input_mode: InputMode,
+    pub password_buffer: Option<String>,
+    pub status: Option<AppStatus>,
 }
 
 impl AppState {
@@ -14,9 +29,34 @@ impl AppState {
         Self {
             networks: Vec::new(),
             list_state: ListState::default(),
-            is_scanning: true,
-            error_message: None,
             selected_path: None,
+            input_mode: InputMode::Normal,
+            password_buffer: None,
+            status: None,
+        }
+    }
+
+    pub fn handle_action(&mut self, action: AppAction) {
+        match action {
+            AppAction::ConnectStarted(ssid) => {
+                self.status = Some(AppStatus::IsConnecting(format!("Connecting to {}", ssid)));
+            }
+
+            AppAction::ConnectFinished(Ok(msg)) => {
+                self.status = Some(AppStatus::Status(msg));
+            }
+
+            AppAction::ConnectFinished(Err(e)) => {
+                self.status = Some(AppStatus::Error(format!("Backend error: {}", e)));
+            }
+
+            AppAction::FrontendError(e) => {
+                self.status = Some(AppStatus::Error(e.to_string()));
+            }
+
+            AppAction::NMError(e) => {
+                self.status = Some(AppStatus::Error(e.to_string()));
+            }
         }
     }
 
@@ -39,7 +79,6 @@ impl AppState {
 
     pub fn set_networks(&mut self, networks: Vec<NetworkDisplayInfo>) {
         self.networks = networks;
-        self.is_scanning = false;
         self.sync_selection();
     }
 
@@ -92,6 +131,36 @@ impl AppState {
         }
     }
 
+    /// Function for getting the NetworkDisplayInfo from the selected item in the tui.
+    ///
+    /// # Returns
+    /// `Result<NetworkDisplayInfo, FrontendError>`: The selected item NetworkDisplayInfo or FrontendError if there was
+    /// some error in the frontend.
+    ///
+    /// # Errors
+    /// `FrontendError::Tui`:
+    /// 1. If the index doesn't exist from the selected item
+    /// 2. If the networks list can not retrieve the item at the index.
+    pub fn network_from_selected(&mut self) -> Result<NetworkDisplayInfo, FrontendError> {
+        let index = match self.list_state.selected() {
+            Some(index) => index,
+            None => {
+                return Err(FrontendError::Tui(
+                    "The selected network resulted in no index or other Tui error!".into(),
+                ));
+            }
+        };
+
+        match self.networks.get(index) {
+            Some(network) => Ok(network.clone()),
+            None => {
+                return Err(FrontendError::Tui(
+                    "The Network was not found in the Tui list".into(),
+                ));
+            }
+        }
+    }
+
     /// Provides the next item in the sorted list
     /// Used in the scrolling of up and down in the tui
     pub fn next(&mut self) {
@@ -125,6 +194,8 @@ impl AppState {
 
 #[cfg(test)]
 mod test {
+    use crate::device::wifi::sec_types::WifiSecurity;
+
     use super::*;
 
     fn mock_network(ssid: &str, strength: u8, path: &str) -> NetworkDisplayInfo {
@@ -133,7 +204,7 @@ mod test {
             strength,
             path: path.into(),
             band: "5GHz".into(),
-            is_secure: true,
+            security: WifiSecurity::Wpa2,
         }
     }
 

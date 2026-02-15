@@ -1,5 +1,7 @@
-use crate::tui::app::AppState;
+use crate::tui::app::{AppState, AppStatus, InputMode};
 use crate::tui::models::NetworkDisplayExt;
+use ratatui::layout::Position;
+use ratatui::widgets::Clear;
 use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout, Rect},
@@ -16,6 +18,9 @@ pub fn draw_ui(f: &mut Frame, app: &mut AppState) {
 
     render_network_list(f, app, chunks[0]);
     render_status_bar(f, app, chunks[1]);
+    if matches!(app.input_mode, InputMode::PasswordInput) {
+        render_password_input(f, app);
+    }
 }
 
 fn render_network_list(f: &mut Frame, app: &mut AppState, area: Rect) {
@@ -56,12 +61,16 @@ fn render_network_list(f: &mut Frame, app: &mut AppState, area: Rect) {
 }
 
 fn render_status_bar(f: &mut Frame, app: &AppState, area: Rect) {
-    let status = if app.is_scanning {
-        "Scanning..."
-    } else {
-        "Idle"
+    let status = match &app.status {
+        Some(AppStatus::Error(err)) => err.as_str(),
+        Some(AppStatus::IsConnecting(msg)) => msg.as_str(),
+        Some(AppStatus::Status(msg)) => msg.as_str(),
+        None => "Idle",
     };
-    let text = format!(" [q] Quit | [↑↓] Navigate | Status: {}", status);
+    let text = format!(
+        " [q] Quit | [↑↓] Navigate | [Enter] Connect |Status: {}",
+        status
+    );
 
     f.render_widget(
         Paragraph::new(text).block(
@@ -71,4 +80,43 @@ fn render_status_bar(f: &mut Frame, app: &AppState, area: Rect) {
         ),
         area,
     );
+}
+
+fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
+    let popup_layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Percentage((100 - percent_y) / 2),
+            Constraint::Percentage(percent_y),
+            Constraint::Percentage((100 - percent_y) / 2),
+        ])
+        .split(r);
+
+    Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Percentage((100 - percent_x) / 2),
+            Constraint::Percentage(percent_x),
+            Constraint::Percentage((100 - percent_x) / 2),
+        ])
+        .split(popup_layout[1])[1]
+}
+
+fn render_password_input(f: &mut Frame, app: &AppState) {
+    let area = centered_rect(60, 20, f.area());
+
+    f.render_widget(Clear, area);
+
+    let block = Block::default()
+        .title(" Enter Password (esc to cancel) ")
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(Color::Yellow));
+
+    let pass_len = app.password_buffer.as_ref().map_or(0, |s| s.len());
+    let display_pass = "*".repeat(pass_len);
+
+    let paragraph = Paragraph::new(display_pass).block(block);
+    f.render_widget(paragraph, area);
+
+    f.set_cursor_position(Position::new(area.x + pass_len as u16 + 1, area.y + 1));
 }
